@@ -1,12 +1,17 @@
 import os
 import base64
-from flask import Flask, request, jsonify
+
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
+
 from groq import Groq
 from openai import OpenAI
+
 import PyPDF2
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
 
 app = Flask(__name__)
 CORS(app)
@@ -139,6 +144,9 @@ Rules:
     )
 
     return jsonify({"response": resp.choices[0].message.content})
+@app.route("/")
+def home():
+    return render_template("index.html")
 
 
 if __name__ == "__main__":
