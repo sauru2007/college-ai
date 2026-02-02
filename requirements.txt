@@ -1,0 +1,6 @@
+flask
+flask-cors
+groq
+openai
+PyPDF2
+scikit-learn

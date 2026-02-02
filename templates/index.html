@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College AI Assistant</title>
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #4f46e5; /* Indigo */
+            --primary-dark: #4338ca;
+            --bg-body: #f3f4f6;
+            --bg-chat: #ffffff;
+            --sidebar-bg: #1f2937;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --user-msg: #4f46e5;
+            --user-text: #ffffff;
+            --ai-msg: #f3f4f6;
+            --ai-text: #1f2937;
+            --border: #e5e7eb;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-body);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            transition: transform 0.3s ease;
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* Custom Dropdown */
+        select.exam-mode {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            background: #374151;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* Upload Button */
+        .upload-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 10px;
+            background: #374151;
+            border: 1px dashed #6b7280;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+        .upload-btn:hover { background: #4b5563; }
+        .upload-btn input { display: none; }
+
+        .file-status {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+
+        /* --- Main Chat Area --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-chat);
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(5px);
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--text-main);
+        }
+
+        #chat-window {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 12px 18px;
+            border-radius: 12px;
+            line-height: 1.6;
+            position: relative;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--user-msg);
+            color: var(--user-text);
+            border-bottom-right-radius: 2px;
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background-color: var(--ai-msg);
+            color: var(--ai-text);
+            border-bottom-left-radius: 2px;
+            border: 1px solid var(--border);
+        }
+
+        /* Markdown Styles within AI messages */
+        .message.ai strong { color: var(--primary); }
+        .message.ai code { background: #e5e7eb; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+        .message.ai pre { background: #1f2937; color: #f3f4f6; padding: 10px; border-radius: 6px; overflow-x: auto; }
+        .message.ai ul { padding-left: 20px; }
+
+        /* Input Area */
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 30px;
+            border: 1px solid var(--border);
+            outline: none;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            background: #f9fafb;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        button.send-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        button.send-btn:hover { background: var(--primary-dark); transform: scale(1.05); }
+
+        .loading {
+            display: none;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-left: 20px;
+            font-style: italic;
+        }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                height: 100%;
+                transform: translateX(-100%);
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+            .sidebar.active { transform: translateX(0); }
+            .mobile-toggle { display: block; }
+            .message { max-width: 95%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <i class="fas fa-graduation-cap"></i> College AI Assistant
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Exam Mode</label>
+            <select id="exam-mode" class="exam-mode">
+                <option value="General">General Chat</option>
+                <option value="2 Marks">Short Answer (2 Marks)</option>
+                <option value="5 Marks">Medium Answer (5 Marks)</option>
+                <option value="10 Marks">Long Answer (10 Marks)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Reference Material</label>
+            <label class="upload-btn">
+                <i class="fas fa-file-upload" style="margin-right:8px;"></i> Upload Syllabus PDF
+                <input type="file" id="pdf-upload" accept=".pdf">
+            </label>
+            <div id="file-status" class="file-status">No file loaded</div>
+        </div>
+        
+        <div style="margin-top:auto; font-size:0.75rem; color:#6b7280;">
+            Powered by Llama 3 & Groq
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="chat-header">
+            <button class="mobile-toggle" id="menu-toggle"><i class="fas fa-bars"></i></button>
+            <h3 style="margin:0; font-size:1.1rem;">Academic Assistant</h3>
+            <div id="loading-indicator" class="loading">AI is thinking...</div>
+        </header>
+
+        <div id="chat-window">
+            <div class="message ai">
+                Hello! I'm ready to help with your studies. <br><br>
+                Select an <b>Exam Mode</b> for specific answer lengths or upload a PDF to ask questions from it.
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <input type="text" id="user-input" placeholder="Ask about DBMS, Java, or college rules..." autocomplete="off">
+            </div>
+            <button class="send-btn" id="send-btn">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </main>
+
+    <script>
+        // --- Configuration ---
+        marked.setOptions({ breaks: true, mangle: false, headerIds: false });
+        
+        // --- DOM Elements ---
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const pdfInput = document.getElementById('pdf-upload');
+        const fileStatus = document.getElementById('file-status');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const examModeSelect = document.getElementById('exam-mode');
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+
+        // --- State ---
+        let pdfChunks = []; // Stores the array of text chunks for RAG
+        let chatHistory = [];
+        let currentExamMode = 'General';
+
+        // --- Event Listeners ---
+        
+        // Mobile Menu
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(e.target) && 
+                !menuToggle.contains(e.target) &&
+                sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+            }
+        });
+
+        // Exam Mode Change
+        examModeSelect.addEventListener('change', (e) => {
+            currentExamMode = e.target.value;
+            // Optional: Notify user via system message
+            addMessage('ai', `Switched to **${currentExamMode}** mode.`);
+        });
+
+        // Send Message
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // PDF Upload
+        pdfInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            fileStatus.textContent = "Processing...";
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/upload-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (data.chunks) {
+                    pdfChunks = data.chunks; // Store chunks for RAG
+                    fileStatus.textContent = `✅ ${file.name} loaded`;
+                    fileStatus.style.color = "#34d399";
+                    addMessage('ai', `I've analyzed **${file.name}**. You can now ask specific questions about its content.`);
+                } else {
+                    throw new Error(data.error || "Unknown error");
+                }
+            } catch (error) {
+                console.error(error);
+                fileStatus.textContent = "Error reading PDF";
+                fileStatus.style.color = "#f87171";
+                addMessage('ai', "Failed to process PDF. Please try again.");
+            }
+        });
+
+        // --- Functions ---
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            // UI Updates
+            addMessage('user', text);
+            userInput.value = '';
+            chatHistory.push({ role: "user", content: text });
+            loadingIndicator.style.display = 'block';
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            // Close sidebar on mobile after sending
+            if (window.innerWidth <= 768) sidebar.classList.remove('active');
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        history: chatHistory,
+                        pdfChunks: pdfChunks, // Send chunks instead of full text
+                        examMode: currentExamMode
+                    })
+                });
+
+                const data = await response.json();
+                if (data.response) {
+                    addMessage('ai', data.response);
+                    chatHistory.push({ role: "assistant", content: data.response });
+                } else {
+                    addMessage('ai', "I'm having trouble connecting right now.");
+                }
+            } catch (error) {
+                console.error(error);
+                addMessage('ai', "Connection error. Is the backend running?");
+            } finally {
+                loadingIndicator.style.display = 'none';
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+        }
+
+        function addMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = marked.parse(text);
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+    </script>
+</body>
+</html>
